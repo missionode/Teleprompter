@@ -81,20 +81,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const startRecording = () => {
         recordedChunks = [];
-        mediaRecorder = new MediaRecorder(stream);
+        const options = { mimeType: 'video/mp4' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            console.warn('MP4 not supported, falling back to WebM.');
+            options.mimeType = 'video/webm';
+        }
+        mediaRecorder = new MediaRecorder(stream, options);
+
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
                 recordedChunks.push(event.data);
             }
         };
         mediaRecorder.onstop = () => {
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             document.body.appendChild(a);
             a.style = 'display: none';
             a.href = url;
-            a.download = 'youtube-teleprompter-video.webm';
+            
+            // Generate a unique timestamp-based filename
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.download = `teleprompter-video-${timestamp}.${mediaRecorder.mimeType.split('/')[1]}`;
+            
             a.click();
             window.URL.revokeObjectURL(url);
             alert('Video saved successfully!');
