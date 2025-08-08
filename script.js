@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordIcon = document.getElementById('record-icon');
     const switchCamBtn = document.getElementById('switch-cam-btn');
     const mirrorBtn = document.getElementById('mirror-btn');
+    const hiddenCanvas = document.getElementById('hidden-canvas');
+    const ctx = hiddenCanvas.getContext('2d');
 
     let isRecording = false;
     let mediaRecorder;
@@ -39,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startCamera();
     });
     
-    // --- Camera & Recording Logic ---
+    // --- Camera & Orientation Logic ---
     const getCameraStream = async (deviceId) => {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -81,26 +83,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Toggle mirror mode for video and text
     mirrorBtn.addEventListener('click', () => {
         isMirrored = !isMirrored;
-        if (isMirrored) {
-            cameraFeed.classList.add('scale-y-[-1]');
-            teleprompterText.style.transform = 'scaleY(-1)';
-        } else {
-            cameraFeed.classList.remove('scale-y-[-1]');
-            teleprompterText.style.transform = 'scaleY(1)';
-        }
+        updateDisplayOrientation();
     });
-    
+
+    const updateDisplayOrientation = () => {
+        let rotation = 0;
+        let isUpsideDown = window.screen.orientation.angle === 180;
+        
+        // Apply automatic 180-degree rotation for inverted devices
+        if (isUpsideDown) {
+            rotation = 180;
+        }
+
+        // Apply manual mirror flip
+        if (isMirrored) {
+            cameraFeed.style.transform = `scaleX(-1) rotate(${rotation}deg)`;
+            teleprompterText.style.transform = `scaleX(1) rotate(${rotation}deg)`;
+        } else {
+            cameraFeed.style.transform = `scaleX(1) rotate(${rotation}deg)`;
+            teleprompterText.style.transform = `scaleX(1) rotate(${rotation}deg)`;
+        }
+    };
+
+    // Listen for orientation changes to apply the automatic correction
+    window.screen.orientation.addEventListener('change', updateDisplayOrientation);
+    window.addEventListener('load', updateDisplayOrientation);
+
+    // --- Recording and Canvas Logic ---
     const startRecording = () => {
-        recordedChunks = [];
         const options = { mimeType: 'video/mp4' };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
             console.warn('MP4 not supported, falling back to WebM.');
             options.mimeType = 'video/webm';
         }
-        mediaRecorder = new MediaRecorder(stream, options);
+        
+        // We will record the stream from the canvas, not the raw camera feed
+        const canvasStream = hiddenCanvas.captureStream();
+        mediaRecorder = new MediaRecorder(canvasStream, options);
 
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -128,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         recordIcon.classList.remove('bg-white');
         recordIcon.classList.add('rounded-md', 'w-6', 'h-6', 'bg-red-500');
         startTeleprompterScroll();
+        drawCanvas();
     };
 
     const stopRecording = () => {
@@ -137,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         recordIcon.classList.add('bg-white');
         recordIcon.classList.remove('rounded-md', 'w-6', 'h-6', 'bg-red-500');
         cancelAnimationFrame(animationFrameId);
+        cancelAnimationFrame(drawCanvasAnimation);
     };
 
     recordBtn.addEventListener('click', () => {
@@ -146,6 +169,27 @@ document.addEventListener('DOMContentLoaded', () => {
             startRecording();
         }
     });
+
+    let drawCanvasAnimation;
+    const drawCanvas = () => {
+        const videoWidth = cameraFeed.videoWidth;
+        const videoHeight = cameraFeed.videoHeight;
+        hiddenCanvas.width = videoWidth;
+        hiddenCanvas.height = videoHeight;
+
+        let rotation = window.screen.orientation.angle;
+        if (rotation === 180) {
+            ctx.save();
+            ctx.translate(videoWidth / 2, videoHeight / 2);
+            ctx.rotate(Math.PI);
+            ctx.drawImage(cameraFeed, -videoWidth / 2, -videoHeight / 2, videoWidth, videoHeight);
+            ctx.restore();
+        } else {
+            ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+        }
+
+        drawCanvasAnimation = requestAnimationFrame(drawCanvas);
+    };
 
     // --- Teleprompter Scrolling Logic ---
     const startTeleprompterScroll = () => {
