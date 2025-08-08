@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordBtn = document.getElementById('record-btn');
     const recordIcon = document.getElementById('record-icon');
     const switchCamBtn = document.getElementById('switch-cam-btn');
-    
+    const orientationBtn = document.getElementById('orientation-btn');
+
     let isRecording = false;
     let mediaRecorder;
     let recordedChunks = [];
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isFrontCamera = true;
     let stream;
     let cameraDevices = [];
+    let isPortrait = false; // Default to landscape
 
     // --- Modal & Settings Handlers ---
     speedSlider.addEventListener('input', (e) => {
@@ -79,6 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    orientationBtn.addEventListener('click', () => {
+        isPortrait = !isPortrait;
+        if (isPortrait) {
+            cameraFeed.classList.remove('object-cover');
+            cameraFeed.classList.add('w-auto', 'h-full', 'object-contain');
+        } else {
+            cameraFeed.classList.remove('w-auto', 'h-full', 'object-contain');
+            cameraFeed.classList.add('object-cover');
+        }
+    });
+
     const startRecording = () => {
         recordedChunks = [];
         const options = { mimeType: 'video/mp4' };
@@ -101,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
             a.style = 'display: none';
             a.href = url;
             
-            // Generate a unique timestamp-based filename
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             a.download = `teleprompter-video-${timestamp}.${mediaRecorder.mimeType.split('/')[1]}`;
             
