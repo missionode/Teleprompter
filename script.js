@@ -10,9 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordBtn = document.getElementById('record-btn');
     const recordIcon = document.getElementById('record-icon');
     const switchCamBtn = document.getElementById('switch-cam-btn');
-    const flipBtn = document.getElementById('flip-btn');
-    const hiddenCanvas = document.getElementById('hidden-canvas');
-    const ctx = hiddenCanvas.getContext('2d');
+    const orientationBtn = document.getElementById('orientation-btn');
 
     let isRecording = false;
     let mediaRecorder;
@@ -22,8 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isFrontCamera = true;
     let stream;
     let cameraDevices = [];
-    let isFlipped = false;
-    let shouldSaveFlipped = false;
+    let isPortrait = false; // Default to landscape
 
     // --- Modal & Settings Handlers ---
     speedSlider.addEventListener('input', (e) => {
@@ -42,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startCamera();
     });
     
-    // --- Camera & Manual Control Logic ---
+    // --- Camera & Recording Logic ---
     const getCameraStream = async (deviceId) => {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -84,21 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    flipBtn.addEventListener('click', () => {
-        isFlipped = !isFlipped;
-        if (isFlipped) {
-            cameraFeed.style.transform = 'scaleX(-1) scaleY(-1)';
-            teleprompterText.style.transform = 'scaleY(-1)';
-            flipBtn.classList.add('bg-blue-500');
+    orientationBtn.addEventListener('click', () => {
+        isPortrait = !isPortrait;
+        if (isPortrait) {
+            cameraFeed.classList.remove('object-cover');
+            cameraFeed.classList.add('w-auto', 'h-full', 'object-contain');
         } else {
-            cameraFeed.style.transform = 'scaleX(-1) scaleY(1)';
-            teleprompterText.style.transform = 'scaleY(1)';
-            flipBtn.classList.remove('bg-blue-500');
+            cameraFeed.classList.remove('w-auto', 'h-full', 'object-contain');
+            cameraFeed.classList.add('object-cover');
         }
-        shouldSaveFlipped = isFlipped;
     });
-    
-    // --- Recording and Canvas Logic ---
+
     const startRecording = () => {
         recordedChunks = [];
         const options = { mimeType: 'video/mp4' };
@@ -106,9 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('MP4 not supported, falling back to WebM.');
             options.mimeType = 'video/webm';
         }
-        
-        const canvasStream = hiddenCanvas.captureStream();
-        mediaRecorder = new MediaRecorder(canvasStream, options);
+        mediaRecorder = new MediaRecorder(stream, options);
 
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -136,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
         recordIcon.classList.remove('bg-white');
         recordIcon.classList.add('rounded-md', 'w-6', 'h-6', 'bg-red-500');
         startTeleprompterScroll();
-        drawCanvas();
     };
 
     const stopRecording = () => {
@@ -146,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
         recordIcon.classList.add('bg-white');
         recordIcon.classList.remove('rounded-md', 'w-6', 'h-6', 'bg-red-500');
         cancelAnimationFrame(animationFrameId);
-        cancelAnimationFrame(drawCanvasAnimation);
     };
 
     recordBtn.addEventListener('click', () => {
@@ -157,39 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    let drawCanvasAnimation;
-    const drawCanvas = () => {
-        const videoWidth = cameraFeed.videoWidth;
-        const videoHeight = cameraFeed.videoHeight;
-        hiddenCanvas.width = videoWidth;
-        hiddenCanvas.height = videoHeight;
-
-        ctx.clearRect(0, 0, videoWidth, videoHeight);
-
-        // Apply flip transformation to the canvas if the "Flip" button is active
-        if (shouldSaveFlipped) {
-            ctx.save();
-            ctx.translate(videoWidth / 2, videoHeight / 2);
-            ctx.rotate(Math.PI);
-            ctx.drawImage(cameraFeed, -videoWidth / 2, -videoHeight / 2, videoWidth, videoHeight);
-            ctx.restore();
-        } else {
-            ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-        }
-
-        drawCanvasAnimation = requestAnimationFrame(drawCanvas);
-    };
-
     // --- Teleprompter Scrolling Logic ---
     const startTeleprompterScroll = () => {
         const teleprompterContainer = document.getElementById('teleprompter-text');
-        teleprompterContainer.scrollTop = 0;
+        teleprompterContainer.scrollTop = 0; // Reset scroll position
+
         const animateScroll = () => {
             teleprompterContainer.scrollTop += scrollSpeed;
             if (teleprompterContainer.scrollTop + teleprompterContainer.clientHeight < teleprompterContainer.scrollHeight) {
                 animationFrameId = requestAnimationFrame(animateScroll);
             } else {
-                stopRecording();
+                stopRecording(); // Stop recording when the script ends
             }
         };
         animateScroll();
