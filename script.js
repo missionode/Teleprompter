@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordBtn = document.getElementById('record-btn');
     const recordIcon = document.getElementById('record-icon');
     const switchCamBtn = document.getElementById('switch-cam-btn');
-    const orientationBtn = document.getElementById('orientation-btn');
+    const mirrorBtn = document.getElementById('mirror-btn');
 
     let isRecording = false;
     let mediaRecorder;
@@ -18,9 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let animationFrameId;
     let scrollSpeed = 1;
     let isFrontCamera = true;
+    let isMirrored = false;
     let stream;
     let cameraDevices = [];
-    let isPortrait = false; // Default to landscape
 
     // --- Modal & Settings Handlers ---
     speedSlider.addEventListener('input', (e) => {
@@ -81,17 +81,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    orientationBtn.addEventListener('click', () => {
-        isPortrait = !isPortrait;
-        if (isPortrait) {
-            cameraFeed.classList.remove('object-cover');
-            cameraFeed.classList.add('w-auto', 'h-full', 'object-contain');
+    // Toggle mirror mode for video and text
+    mirrorBtn.addEventListener('click', () => {
+        isMirrored = !isMirrored;
+        if (isMirrored) {
+            cameraFeed.classList.add('scale-y-[-1]');
+            teleprompterText.style.transform = 'scaleY(-1)';
         } else {
-            cameraFeed.classList.remove('w-auto', 'h-full', 'object-contain');
-            cameraFeed.classList.add('object-cover');
+            cameraFeed.classList.remove('scale-y-[-1]');
+            teleprompterText.style.transform = 'scaleY(1)';
         }
     });
-
+    
     const startRecording = () => {
         recordedChunks = [];
         const options = { mimeType: 'video/mp4' };
