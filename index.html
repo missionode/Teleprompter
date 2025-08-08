@@ -12,10 +12,11 @@
             position: relative;
         }
         .scrolling-text {
-            /* Start position is below the viewport */
+            /* This is our starting position, off-screen at the bottom */
             transform: translateY(100%);
+            /* We will control the transition property with JavaScript */
             transition: transform linear;
-            white-space: pre-wrap; /* This helps preserve line breaks */
+            white-space: pre-wrap; /* Keeps line breaks and spaces from text area */
         }
     </style>
 </head>
