@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordBtn = document.getElementById('record-btn');
     const recordIcon = document.getElementById('record-icon');
     const switchCamBtn = document.getElementById('switch-cam-btn');
-    const mirrorBtn = document.getElementById('mirror-btn');
+    const flipBtn = document.getElementById('flip-btn');
     const hiddenCanvas = document.getElementById('hidden-canvas');
     const ctx = hiddenCanvas.getContext('2d');
 
@@ -20,9 +20,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let animationFrameId;
     let scrollSpeed = 1;
     let isFrontCamera = true;
-    let isMirrored = false;
     let stream;
     let cameraDevices = [];
+    let isFlipped = false;
+    let shouldSaveFlipped = false;
 
     // --- Modal & Settings Handlers ---
     speedSlider.addEventListener('input', (e) => {
@@ -41,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startCamera();
     });
     
-    // --- Camera & Orientation Logic ---
+    // --- Camera & Manual Control Logic ---
     const getCameraStream = async (deviceId) => {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -83,43 +84,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    mirrorBtn.addEventListener('click', () => {
-        isMirrored = !isMirrored;
-        updateDisplayOrientation();
-    });
-
-    const updateDisplayOrientation = () => {
-        let rotation = 0;
-        let isUpsideDown = window.screen.orientation.angle === 180;
-        
-        // Apply automatic 180-degree rotation for inverted devices
-        if (isUpsideDown) {
-            rotation = 180;
-        }
-
-        // Apply manual mirror flip
-        if (isMirrored) {
-            cameraFeed.style.transform = `scaleX(-1) rotate(${rotation}deg)`;
-            teleprompterText.style.transform = `scaleX(1) rotate(${rotation}deg)`;
+    flipBtn.addEventListener('click', () => {
+        isFlipped = !isFlipped;
+        if (isFlipped) {
+            cameraFeed.style.transform = 'scaleX(-1) scaleY(-1)';
+            teleprompterText.style.transform = 'scaleY(-1)';
+            flipBtn.classList.add('bg-blue-500');
         } else {
-            cameraFeed.style.transform = `scaleX(1) rotate(${rotation}deg)`;
-            teleprompterText.style.transform = `scaleX(1) rotate(${rotation}deg)`;
+            cameraFeed.style.transform = 'scaleX(-1) scaleY(1)';
+            teleprompterText.style.transform = 'scaleY(1)';
+            flipBtn.classList.remove('bg-blue-500');
         }
-    };
-
-    // Listen for orientation changes to apply the automatic correction
-    window.screen.orientation.addEventListener('change', updateDisplayOrientation);
-    window.addEventListener('load', updateDisplayOrientation);
-
+        shouldSaveFlipped = isFlipped;
+    });
+    
     // --- Recording and Canvas Logic ---
     const startRecording = () => {
+        recordedChunks = [];
         const options = { mimeType: 'video/mp4' };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
             console.warn('MP4 not supported, falling back to WebM.');
             options.mimeType = 'video/webm';
         }
         
-        // We will record the stream from the canvas, not the raw camera feed
         const canvasStream = hiddenCanvas.captureStream();
         mediaRecorder = new MediaRecorder(canvasStream, options);
 
@@ -177,8 +164,10 @@ document.addEventListener('DOMContentLoaded', () => {
         hiddenCanvas.width = videoWidth;
         hiddenCanvas.height = videoHeight;
 
-        let rotation = window.screen.orientation.angle;
-        if (rotation === 180) {
+        ctx.clearRect(0, 0, videoWidth, videoHeight);
+
+        // Apply flip transformation to the canvas if the "Flip" button is active
+        if (shouldSaveFlipped) {
             ctx.save();
             ctx.translate(videoWidth / 2, videoHeight / 2);
             ctx.rotate(Math.PI);
@@ -194,14 +183,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Teleprompter Scrolling Logic ---
     const startTeleprompterScroll = () => {
         const teleprompterContainer = document.getElementById('teleprompter-text');
-        teleprompterContainer.scrollTop = 0; // Reset scroll position
-
+        teleprompterContainer.scrollTop = 0;
         const animateScroll = () => {
             teleprompterContainer.scrollTop += scrollSpeed;
             if (teleprompterContainer.scrollTop + teleprompterContainer.clientHeight < teleprompterContainer.scrollHeight) {
                 animationFrameId = requestAnimationFrame(animateScroll);
             } else {
-                stopRecording(); // Stop recording when the script ends
+                stopRecording();
             }
         };
         animateScroll();
