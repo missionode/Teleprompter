@@ -32,23 +32,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to start the teleprompter scroll
     const startTeleprompter = () => {
         const script = scriptInput.value.trim();
-        if (!script) return;
+        if (!script || isRunning) return;
 
         teleprompterText.innerHTML = script.replace(/\n/g, '<br>');
         teleprompterText.style.fontSize = `${sizeSlider.value}px`;
         
-        // Reset and prepare for scrolling
+        // Reset the text position and transition
         teleprompterText.style.transition = 'none';
         teleprompterText.style.transform = `translateY(${teleprompterDisplay.offsetHeight}px)`;
         
-        // Force reflow to apply the reset
+        // Wait for the browser to apply the reset before starting the animation
         teleprompterText.offsetHeight; 
 
         // Calculate scroll duration based on speed and content height
         const contentHeight = teleprompterText.offsetHeight;
         const containerHeight = teleprompterDisplay.offsetHeight;
         const totalDistance = contentHeight + containerHeight;
-        const speedMultiplier = 10000; // Adjust for desired speed
+        const speedMultiplier = 10000; // Adjust this value to change overall speed
         const duration = totalDistance / (speedSlider.value / 10 * speedMultiplier);
 
         // Apply the transition to start scrolling
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to pause the teleprompter
     const pauseTeleprompter = () => {
-        if (!isRunning) return;
+        if (!isRunning || isPaused) return;
 
         const style = window.getComputedStyle(teleprompterText);
         const transformMatrix = new WebKitCSSMatrix(style.transform);
@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to stop the teleprompter
     const stopTeleprompter = () => {
+        if (!isRunning) return;
         isRunning = false;
         isPaused = false;
         teleprompterText.style.transition = 'none';
