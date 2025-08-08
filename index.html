@@ -46,8 +46,6 @@
     <div id="camera-view" class="hidden fixed inset-0 z-40 bg-black">
         <video id="camera-feed" class="w-full h-full object-cover transform scale-x-[-1]" autoplay playsinline muted></video>
 
-        <canvas id="hidden-canvas" class="hidden"></canvas>
-
         <div class="absolute top-0 left-0 w-full h-full flex flex-col items-center p-4">
             <div id="teleprompter-text-container" class="w-full max-w-4xl p-6 bg-black bg-opacity-60 text-white rounded-lg flex-grow flex flex-col justify-center overflow-hidden">
                 <div id="teleprompter-text" class="teleprompter-text font-inter text-3xl md:text-4xl text-center overflow-y-auto h-full"></div>
@@ -55,14 +53,14 @@
         </div>
 
         <div class="absolute bottom-6 left-0 w-full flex items-center justify-between p-4">
-            <button id="flip-btn" class="btn-icon">
-                <i class="fas fa-undo-alt"></i>
+            <button id="orientation-btn" class="btn-icon">
+                <i class="fas fa-mobile-alt"></i>
             </button>
-            
+
             <button id="record-btn" class="relative w-16 h-16 rounded-full bg-red-500 border-4 border-white transition-all duration-300 hover:scale-110">
                 <div id="record-icon" class="absolute inset-0 m-auto w-10 h-10 rounded-full bg-white"></div>
             </button>
-            
+
             <button id="switch-cam-btn" class="btn-icon">
                 <i class="fas fa-sync-alt"></i>
             </button>
