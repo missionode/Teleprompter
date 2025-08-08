@@ -1,130 +1,157 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const scriptInput = document.getElementById('script-input');
+    const mainUi = document.getElementById('main-ui');
+    const teleprompterView = document.getElementById('teleprompter-view');
     const teleprompterText = document.getElementById('teleprompter-text');
+    const scriptInput = document.getElementById('script-input');
+
     const startBtn = document.getElementById('start-btn');
-    const pauseBtn = document.getElementById('pause-btn');
     const stopBtn = document.getElementById('stop-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const downloadBtn = document.getElementById('download-btn');
     const settingsBtn = document.getElementById('settings-btn');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
     const settingsModal = document.getElementById('settings-modal');
-    const closeModalBtn = document.getElementById('close-modal-btn');
+    
     const speedSlider = document.getElementById('speed-slider');
-    const sizeSlider = document.getElementById('size-slider');
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    const body = document.body;
+    const speedValue = document.getElementById('speed-value');
+    const fontSizeSlider = document.getElementById('font-size-slider');
+    const fontSizeValue = document.getElementById('font-size-value');
+    const fontFamilySelect = document.getElementById('font-family-select');
+    const themeToggle = document.getElementById('theme-toggle');
+    const mirrorToggle = document.getElementById('mirror-toggle');
 
-    let animationFrameId;
+    let isPlaying = false;
     let isPaused = false;
-    let currentPosition = 0;
-    let startTime;
-    let scrollSpeed = 1; // Default speed
-    let lastTimestamp = 0;
-    const scrollStep = 0.5; // Controls the smoothness
+    let scrollSpeed = parseFloat(localStorage.getItem('scrollSpeed')) || 1;
+    let fontSize = parseFloat(localStorage.getItem('fontSize')) || 2;
+    let fontFamily = localStorage.getItem('fontFamily') || 'Inter, sans-serif';
+    let isDarkTheme = localStorage.getItem('theme') === 'dark';
+    let isMirrored = localStorage.getItem('isMirrored') === 'true';
+    let animationFrameId;
 
-    // Load settings from localStorage
-    const savedSpeed = localStorage.getItem('teleprompterSpeed');
-    const savedSize = localStorage.getItem('teleprompterSize');
-    const savedTheme = localStorage.getItem('teleprompterTheme');
-
-    if (savedSpeed) {
-        speedSlider.value = savedSpeed;
-        scrollSpeed = savedSpeed;
-    }
-
-    if (savedSize) {
-        sizeSlider.value = savedSize;
-        teleprompterText.style.fontSize = `${savedSize}px`;
-    }
-
-    if (savedTheme === 'dark') {
-        body.classList.add('dark');
-        themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
-    }
-
-    // Scroll animation loop
-    function animateScroll(timestamp) {
-        if (!startTime) startTime = timestamp;
-        if (isPaused) {
-            lastTimestamp = timestamp;
-            animationFrameId = requestAnimationFrame(animateScroll);
-            return;
-        }
-
-        const elapsed = timestamp - lastTimestamp;
-        lastTimestamp = timestamp;
-
-        if (teleprompterText.offsetHeight < teleprompterText.parentElement.offsetHeight) {
-             currentPosition += (scrollSpeed * scrollStep);
-        } else {
-             currentPosition += (scrollSpeed * scrollStep) * (teleprompterText.offsetHeight / teleprompterText.parentElement.offsetHeight);
-        }
+    // --- State and UI Initialization ---
+    const applySettings = () => {
+        // Apply font size and family
+        teleprompterText.style.fontSize = `${fontSize}rem`;
+        teleprompterText.style.fontFamily = fontFamily;
+        scriptInput.style.fontFamily = fontFamily;
         
-        teleprompterText.style.transform = `translateY(-${currentPosition}px)`;
+        // Apply theme
+        document.body.classList.toggle('dark', isDarkTheme);
+        document.body.classList.toggle('bg-gray-100', !isDarkTheme);
+        document.body.classList.toggle('bg-gray-900', isDarkTheme);
+        document.body.classList.toggle('text-gray-800', !isDarkTheme);
+        document.body.classList.toggle('text-gray-200', isDarkTheme);
+        themeToggle.classList.toggle('bg-blue-500', isDarkTheme);
+        themeToggle.classList.toggle('bg-gray-200', !isDarkTheme);
+        themeToggle.firstElementChild.style.transform = isDarkTheme ? 'translateX(1.25rem)' : 'translateX(0)';
 
-        // Check if the scroll is finished
-        if (currentPosition > teleprompterText.offsetHeight + teleprompterText.parentElement.offsetHeight) {
-            stopTeleprompter();
-            return;
+        // Apply mirror mode
+        teleprompterText.style.transform = isMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+        mirrorToggle.classList.toggle('bg-blue-500', isMirrored);
+        mirrorToggle.classList.toggle('bg-gray-200', !isMirrored);
+        mirrorToggle.firstElementChild.style.transform = isMirrored ? 'translateX(1.25rem)' : 'translateX(0)';
+    
+        // Update slider values
+        speedSlider.value = scrollSpeed;
+        speedValue.textContent = scrollSpeed;
+        fontSizeSlider.value = fontSize;
+        fontSizeValue.textContent = `${fontSize}rem`;
+        fontFamilySelect.value = fontFamily;
+    };
+
+    applySettings();
+
+    // --- Teleprompter Logic ---
+    const animateScroll = () => {
+        if (!isPaused) {
+            teleprompterView.scrollTop += scrollSpeed;
+            if (teleprompterView.scrollTop + teleprompterView.clientHeight >= teleprompterView.scrollHeight) {
+                // Stop scrolling at the end
+                isPlaying = false;
+                pauseBtn.firstElementChild.classList.replace('fa-pause', 'fa-play');
+                return;
+            }
         }
-
         animationFrameId = requestAnimationFrame(animateScroll);
-    }
+    };
 
-    // Event listeners for controls
-    startBtn.addEventListener('click', () => {
-        const script = scriptInput.value.trim();
-        if (script) {
-            teleprompterText.innerHTML = script.replace(/\n/g, '<br>');
-            teleprompterText.style.fontSize = `${sizeSlider.value}px`;
-            teleprompterText.style.transform = `translateY(${teleprompterText.parentElement.offsetHeight}px)`;
-            currentPosition = -teleprompterText.parentElement.offsetHeight;
+    const startTeleprompter = () => {
+        if (!isPlaying) {
+            isPlaying = true;
             isPaused = false;
-            startTime = null;
-            lastTimestamp = 0;
-            startBtn.classList.add('hidden');
-            pauseBtn.classList.remove('hidden');
-            animationFrameId = requestAnimationFrame(animateScroll);
+            mainUi.classList.add('hidden');
+            teleprompterView.classList.remove('hidden');
+            teleprompterText.innerHTML = `<pre class="whitespace-pre-wrap">${scriptInput.value}</pre>`;
+            teleprompterView.scrollTop = 0;
+            pauseBtn.firstElementChild.classList.replace('fa-play', 'fa-pause');
+            animateScroll();
         }
-    });
+    };
 
-    pauseBtn.addEventListener('click', () => {
-        isPaused = !isPaused;
-        pauseBtn.innerHTML = isPaused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
-    });
-
-    stopBtn.addEventListener('click', stopTeleprompter);
-
-    function stopTeleprompter() {
+    const stopTeleprompter = () => {
+        isPlaying = false;
         cancelAnimationFrame(animationFrameId);
-        teleprompterText.style.transform = `translateY(0)`;
-        isPaused = false;
-        startBtn.classList.remove('hidden');
-        pauseBtn.classList.add('hidden');
-        pauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-    }
+        mainUi.classList.remove('hidden');
+        teleprompterView.classList.add('hidden');
+    };
 
-    // Event listeners for settings
-    settingsBtn.addEventListener('click', () => {
-        settingsModal.classList.remove('hidden');
-    });
+    const togglePause = () => {
+        isPaused = !isPaused;
+        pauseBtn.firstElementChild.classList.toggle('fa-pause', !isPaused);
+        pauseBtn.firstElementChild.classList.toggle('fa-play', isPaused);
+    };
 
-    closeModalBtn.addEventListener('click', () => {
-        settingsModal.classList.add('hidden');
-    });
+    // --- Event Listeners ---
+    startBtn.addEventListener('click', startTeleprompter);
+    stopBtn.addEventListener('click', stopTeleprompter);
+    pauseBtn.addEventListener('click', togglePause);
+
+    // Settings
+    settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+    closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
 
     speedSlider.addEventListener('input', (e) => {
-        scrollSpeed = e.target.value;
-        localStorage.setItem('teleprompterSpeed', scrollSpeed);
+        scrollSpeed = parseFloat(e.target.value);
+        speedValue.textContent = scrollSpeed;
+        localStorage.setItem('scrollSpeed', scrollSpeed);
     });
 
-    sizeSlider.addEventListener('input', (e) => {
-        teleprompterText.style.fontSize = `${e.target.value}px`;
-        localStorage.setItem('teleprompterSize', e.target.value);
+    fontSizeSlider.addEventListener('input', (e) => {
+        fontSize = parseFloat(e.target.value);
+        fontSizeValue.textContent = `${fontSize}rem`;
+        localStorage.setItem('fontSize', fontSize);
+        teleprompterText.style.fontSize = `${fontSize}rem`;
     });
 
-    themeToggleBtn.addEventListener('click', () => {
-        body.classList.toggle('dark');
-        const isDarkMode = body.classList.contains('dark');
-        localStorage.setItem('teleprompterTheme', isDarkMode ? 'dark' : 'light');
-        themeToggleBtn.innerHTML = isDarkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    fontFamilySelect.addEventListener('change', (e) => {
+        fontFamily = e.target.value;
+        localStorage.setItem('fontFamily', fontFamily);
+        teleprompterText.style.fontFamily = fontFamily;
+        scriptInput.style.fontFamily = fontFamily;
+    });
+
+    themeToggle.addEventListener('click', () => {
+        isDarkTheme = !isDarkTheme;
+        localStorage.setItem('theme', isDarkTheme ? 'dark' : 'light');
+        applySettings();
+    });
+
+    mirrorToggle.addEventListener('click', () => {
+        isMirrored = !isMirrored;
+        localStorage.setItem('isMirrored', isMirrored);
+        applySettings();
+    });
+
+    // File Download
+    downloadBtn.addEventListener('click', () => {
+        const scriptText = scriptInput.value;
+        const blob = new Blob([scriptText], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'script.txt';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     });
 });
